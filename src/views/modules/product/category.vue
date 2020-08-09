@@ -5,16 +5,16 @@
 <script>
 export default {
   components: {},
-  data () {
+  data() {
     return {
       data: [],
       defaultProps: {
         children: "children",
-        label: "label"
-      }
+        label: "name",
+      },
     };
   },
-// 测试 
+  // 测试
   methods: {
     handleNodeClick(data) {
       console.log(data);
@@ -22,16 +22,18 @@ export default {
     getMenus() {
       this.$http({
         url: this.$http.adornUrl("/product/category/list/tree"),
-        method: "get"
-      }).then(data => {
-        console.log("成功！", data);
+        method: "get",
+      }).then(({ data }) => {
+        const { data: menu } = data;
+        console.log("成功！", menu);
+        this.data = menu;
       });
-    }
+    },
   },
   // 测试
   created() {
     this.getMenus();
-  }
+  },
 };
 </script>
 <style scoped>
