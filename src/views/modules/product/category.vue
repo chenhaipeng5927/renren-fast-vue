@@ -28,6 +28,7 @@ export default {
       });
     }
   },
+  // 测试
   created() {
     this.getMenus();
   }
