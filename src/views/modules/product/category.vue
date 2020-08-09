@@ -14,7 +14,7 @@ export default {
       }
     };
   },
-
+ 
   methods: {
     handleNodeClick(data) {
       console.log(data);
