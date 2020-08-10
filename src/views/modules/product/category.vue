@@ -10,13 +10,20 @@
     <span class="custom-tree-node" slot-scope="{ node, data }">
       <span>{{ node.label }}</span>
       <span>
-        <el-button v-show="node.level <= 2" type="text" size="mini" @click="() => append(data)">增加</el-button>
+        <el-button
+          v-show="node.level <= 2"
+          icon="el-icon-plus"
+          plain
+          size="mini"
+          @click="() => append(data)"
+        ></el-button>
         <el-button
           v-if="node.childNodes.length==0"
-          type="text"
+          icon="el-icon-delete"
           size="mini"
+          plain
           @click="() => remove(node, data)"
-        >删除</el-button>
+        ></el-button>
       </span>
     </span>
   </el-tree>
