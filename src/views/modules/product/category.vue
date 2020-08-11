@@ -1,6 +1,9 @@
 <!--  -->
 <template>
   <div>
+    <el-switch v-model="draggable" active-text="开启拖拽" inactive-text="关闭拖拽"></el-switch>
+    <el-button v-if="updateNodes.length>=1" @click="batchsave">批量保存</el-button>
+    <el-button type="danger" @click="batchDelete">删除按钮</el-button>
     <el-tree
       :data="data"
       :props="defaultProps"
@@ -8,28 +11,29 @@
       show-checkbox
       node-key="catId"
       :default-expanded-keys="expandedKey"
-      draggable
+      :draggable="draggable"
       :allow-drop="allowDrop"
       @node-drop="handleDrop"
+      ref="menuTree"
     >
       <span class="custom-tree-node" slot-scope="{ node, data }">
         <span>{{ node.label }}</span>
         <span>
           <el-button
             v-show="node.level <= 2"
-            icon="el-icon-plus"
+            type="text"
             plain
             size="mini"
             @click="() => append(data)"
-          ></el-button>
+          >增加</el-button>
           <el-button
             v-if="node.childNodes.length==0"
-            icon="el-icon-delete"
+            type="text"
             size="mini"
             plain
             @click="() => remove(node, data)"
-          ></el-button>
-          <el-button icon="el-icon-edit" size="mini" plain @click="edit(data)"></el-button>
+          >删除</el-button>
+          <el-button type="text" size="mini" plain @click="edit(data)">编辑</el-button>
         </span>
       </span>
     </el-tree>
@@ -58,6 +62,8 @@ export default {
   components: {},
   data() {
     return {
+      pCid: [],
+      draggable: false,
       updateNodes: [],
       maxLevel: 0,
       title: "",
@@ -70,24 +76,72 @@ export default {
         showStatus: 1,
         sort: 0,
         icon: "",
-        productUnit: ""
+        productUnit: "",
       },
       dialogVisible: false,
       data: [],
       expandedKey: [],
       defaultProps: {
         children: "children",
-        label: "name"
-      }
+        label: "name",
+      },
     };
   },
 
   methods: {
+    batchDelete() {
+      let catIds = [];
+      let names = [];
+      let checkedNodes = this.$refs.menuTree.getCheckedNodes();
+      checkedNodes.forEach(function (item) {
+        catIds.push(item.catId);
+        names.push(item.name);
+      });
+       this.$confirm(`是否批量删除删除【${names}】菜单?`, "提示", {
+        confirmButtonText: "确定",
+        cancelButtonText: "取消",
+        type: "warning",
+      })
+        .then(() => {
+          this.$http({
+            url: this.$http.adornUrl("/product/category/delete"),
+            method: "post",
+            data: this.$http.adornData(catIds, false),
+          }).then(({ data }) => {
+            this.$message({
+              message: "菜单删除成功",
+              type: "success",
+            });
+            //刷新新的菜单
+            this.getMenus();
+          });
+        })
+        .catch(() => {});
+    },
+    batchsave() {
+      this.$http({
+        url: this.$http.adornUrl("/product/category/update/sort"),
+        method: "post",
+        data: this.$http.adornData(this.updateNodes, false),
+      }).then(({ data }) => {
+        this.$message({
+          message: "菜单顺序修改成功",
+          type: "success",
+        });
+        //刷新菜单
+        this.getMenus();
+        this.expandedKey = this.pCid;
+        this.updateNodes = [];
+        this.pCid = [];
+      });
+    },
+    //拖拽后数据更新
     handleDrop(draggingNode, dropNode, dropType) {
       console.log("tree drop: ", dropNode.label, dropType);
       //1.当前节点的最新父节点的id
       let pCid = 0;
       let siblings = null;
+      console.log("--------------------------", dropNode);
       if (dropType == "before" || dropType == "after") {
         pCid =
           dropNode.parent.data.catId == undefined
@@ -98,7 +152,7 @@ export default {
         pCid = dropNode.data.catId;
         siblings = dropNode.childNodes;
       }
-
+      this.pCid.push(pCid);
       //2.当前拖拽节点的最新顺序
       for (let i = 0; i < siblings.length; i++) {
         if (siblings[i].data.catId == draggingNode.data.catId) {
@@ -114,7 +168,7 @@ export default {
             catId: siblings[i].data.catId,
             sort: i,
             parentCid: pCid,
-            catLevel: catLevel
+            catLevel: catLevel,
           });
         } else {
           this.updateNodes.push({ catId: siblings[i].data.catId, sort: i });
@@ -124,13 +178,14 @@ export default {
 
       //3.当前拖拽节点的最新层级
     },
+    //递归修改子节点level
     updateChildNodeLevel(node) {
       if (node.childNodes.length > 0) {
         for (let i = 0; i < node.childNodes.length; i++) {
           var cNode = node.childNodes[i].data;
           this.updateNodes.push({
             catId: cNode.catId,
-            catLevel: node.childNodes[i].level
+            catLevel: node.childNodes[i].level,
           });
           this.updateChildNodeLevel(node.childNodes[i]);
         }
@@ -139,39 +194,35 @@ export default {
       node.childNodes;
       this.updateNodes.push();
     },
-    //拖拽
+    //是否拖拽
     allowDrop(draggingNode, dropNode, type) {
+      //重置最大深度
+      this.maxLevel = 0;
       //1.被拖动的当前节点以及所在的父节点总层数不能大于三
 
       //1）求出最大深度
-      this.countNodeLevel(draggingNode.data);
+      this.countNodeLevel(draggingNode);
       //2）求出当前节点的深度
-      let deep = this.maxLevel - draggingNode.data.catLevel + 1;
+      let deep = this.maxLevel - draggingNode.level + 1;
       console.log("maxLevel", this.maxLevel);
-      console.log("draggingNode.data.catLevel", draggingNode.data.catLevel);
       console.log("deep", deep);
       if (type == "inner") {
-        console.log(type);
-        return deep + dropNode.data.catLevel <= 3;
+        return deep + dropNode.level <= 3;
       } else {
         console.log(type);
         return deep + dropNode.parent.level <= 3;
       }
     },
     countNodeLevel(node) {
-      //重置最大深度
-      this.maxLevel = 0;
-      //找到所有子节点最大最大深度
-      console.log("---------------node--------------", node);
-      if (node.children != null && node.children.length > 0) {
-        for (let i = 0; i < node.children.length; i++) {
-          if (node.children[i].catLevel > this.maxLevel) {
-            this.maxLevel = node.children[i].catLevel;
+      if (node.childNodes != null && node.childNodes.length > 0) {
+        for (let i = 0; i < node.childNodes.length; i++) {
+          if (node.childNodes[i].level > this.maxLevel) {
+            this.maxLevel = node.childNodes[i].level;
           }
-          this.countNodeLevel(node.children[i]);
+          this.countNodeLevel(node.childNodes[i]);
         }
       } else {
-        this.maxLevel = node.catLevel;
+        this.maxLevel = node.level;
       }
     },
     //编辑栏提交
@@ -192,11 +243,11 @@ export default {
         method: "post",
         //k,v名称一样时，对象中:v可省略
         // var data = { catId, name, icon, productUnit };//直接作为参数传去
-        data: this.$http.adornData({ catId, name, icon, productUnit }, false)
+        data: this.$http.adornData({ catId, name, icon, productUnit }, false),
       }).then(({ data }) => {
         this.$message({
           message: "菜单修改成功",
-          type: "success"
+          type: "success",
         });
         this.dialogVisible = false;
         this.getMenus();
@@ -213,7 +264,7 @@ export default {
       //发送请求获取当前节点最新的数据
       this.$http({
         url: this.$http.adornUrl(`/product/category/info/${data.catId}`),
-        method: "get"
+        method: "get",
       }).then(({ data }) => {
         const { data: categoryV } = data;
         this.category.name = categoryV.name;
@@ -232,11 +283,11 @@ export default {
       this.$http({
         url: this.$http.adornUrl("/product/category/save"),
         method: "post",
-        data: this.$http.adornData(this.category, false)
+        data: this.$http.adornData(this.category, false),
       }).then(({ data }) => {
         this.$message({
           message: "菜单保存成功",
-          type: "success"
+          type: "success",
         });
         this.dialogVisible = false;
         this.getMenus();
@@ -247,7 +298,7 @@ export default {
     getMenus() {
       this.$http({
         url: this.$http.adornUrl("/product/category/list/tree"),
-        method: "get"
+        method: "get",
       }).then(({ data }) => {
         const { data: menu } = data;
         console.log("成功！", menu);
@@ -276,17 +327,17 @@ export default {
       this.$confirm(`是否删除【${data.name}】菜单?`, "提示", {
         confirmButtonText: "确定",
         cancelButtonText: "取消",
-        type: "warning"
+        type: "warning",
       })
         .then(() => {
           this.$http({
             url: this.$http.adornUrl("/product/category/delete"),
             method: "post",
-            data: this.$http.adornData(ids, false)
+            data: this.$http.adornData(ids, false),
           }).then(({ data }) => {
             this.$message({
               message: "菜单删除成功",
-              type: "success"
+              type: "success",
             });
             //刷新新的菜单
             this.getMenus();
@@ -295,12 +346,12 @@ export default {
           });
         })
         .catch(() => {});
-    }
+    },
   },
   // 测试
   created() {
     this.getMenus();
-  }
+  },
 };
 </script>
 <style scoped>
