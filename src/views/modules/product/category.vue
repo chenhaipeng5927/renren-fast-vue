@@ -3,7 +3,7 @@
   <div>
     <el-switch v-model="draggable" active-text="开启拖拽" inactive-text="关闭拖拽"></el-switch>
     <el-button v-if="updateNodes.length>=1" @click="batchsave">批量保存</el-button>
-    <el-button type="danger" @click="batchDelete">删除按钮</el-button>
+    <el-button type="danger" @click="batchDelete" size="mini">删除按钮</el-button>
     <el-tree
       :data="data"
       :props="defaultProps"
