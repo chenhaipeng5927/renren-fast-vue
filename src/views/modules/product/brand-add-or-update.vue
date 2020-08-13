@@ -15,19 +15,19 @@
         <el-input v-model="dataForm.name" placeholder="品牌名"></el-input>
       </el-form-item>
       <el-form-item label="品牌logo地址" prop="logo">
-        <single-upload  v-model="dataForm.logo"></single-upload>
+        <single-upload v-model="dataForm.logo"></single-upload>
       </el-form-item>
       <el-form-item label="介绍" prop="descript">
         <el-input v-model="dataForm.descript" placeholder="介绍"></el-input>
       </el-form-item>
       <el-form-item label="显示状态" prop="showStatus">
-        <el-switch v-model="dataForm.showStatus"></el-switch>
+        <el-switch v-model="dataForm.showStatus" :active-value="1" :inactive-value="0"></el-switch>
       </el-form-item>
       <el-form-item label="检索首字母" prop="firstLetter">
         <el-input v-model="dataForm.firstLetter" placeholder="检索首字母"></el-input>
       </el-form-item>
       <el-form-item label="排序" prop="sort">
-        <el-input v-model="dataForm.sort" placeholder="排序"></el-input>
+        <el-input v-model.number="dataForm.sort" placeholder="排序"></el-input>
       </el-form-item>
     </el-form>
     <span slot="footer" class="dialog-footer">
@@ -38,7 +38,7 @@
 </template>
 
 <script>
-import singleUpload from "@/components/upload/singleUpload"
+import singleUpload from "@/components/upload/singleUpload";
 export default {
   data() {
     return {
@@ -48,9 +48,9 @@ export default {
         name: "",
         logo: "",
         descript: "",
-        showStatus: "",
+        showStatus: 1,
         firstLetter: "",
-        sort: ""
+        sort: 0
       },
       dataRule: {
         name: [{ required: true, message: "品牌名不能为空", trigger: "blur" }],
@@ -68,9 +68,35 @@ export default {
           }
         ],
         firstLetter: [
-          { required: true, message: "检索首字母不能为空", trigger: "blur" }
+          {
+            validator: (rule, value, callback) => {
+              if (value === "") {
+                callback(new Error("首字母不能为空"));
+              } else if (!/^[a-zA-Z]$/.test(value)) {
+                callback(new Error("首字母必须为当个a-z之间的字母"));
+              } else {
+                callback();
+              }
+            },
+            trigger: "blur"
+          }
         ],
-        sort: [{ required: true, message: "排序不能为空", trigger: "blur" }]
+        sort: [
+          {
+            validator: (rule, value, callback) => {
+              if (value === "") {
+                callback(new Error("排序不能为空"));
+              } else if (!Number.isInteger(value)) {
+                callback(new Error("排序必须为数值"));
+              } else if (value < 0) {
+                callback(new Error("排序必须为正数"));
+              } else {
+                callback();
+              }
+            },
+            trigger: "blur"
+          }
+        ]
       }
     };
   },
@@ -137,7 +163,7 @@ export default {
       });
     }
   },
-  components:{
+  components: {
     singleUpload
   }
 };
