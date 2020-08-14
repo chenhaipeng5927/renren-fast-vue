@@ -26,7 +26,7 @@
       <el-form-item label="所属分类id" prop="catelogId">
         <!-- <el-input v-model="dataForm.catelogId" placeholder="所属分类id"></el-input> -->
         <el-cascader
-          v-model="dataForm.catelogId"
+          v-model="dataForm.catelogIds"
           :options="categorys"
           :props="props"
         ></el-cascader>
@@ -56,7 +56,8 @@ export default {
         sort: "",
         descript: "",
         icon: "",
-        catelogId: ""
+        catelogIds: [],
+        catelogId:0
       },
       dataRule: {
         attrGroupName: [
@@ -125,7 +126,7 @@ export default {
               sort: this.dataForm.sort,
               descript: this.dataForm.descript,
               icon: this.dataForm.icon,
-              catelogId: this.dataForm.catelogId
+              catelogId: this.dataForm.catelogIds[this.dataForm.catelogIds.length-1]
             })
           }).then(({ data }) => {
             if (data && data.code === 0) {
